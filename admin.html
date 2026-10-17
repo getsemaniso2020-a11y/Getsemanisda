@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getsemaní — Administración de roles</title>
+<script>
+/* Guarda de acceso: solo entra quien tenga el rol 'administrador' (se lee del perfil guardado).
+   OJO: esto es solo front-end. Con backend, la verificación real debe hacerse en el servidor. */
+(function(){
+  var ok=false;
+  try{
+    var u=JSON.parse(localStorage.getItem('getsemani_user'));
+    var mail=(u.email||'').toLowerCase();
+    var p=(JSON.parse(localStorage.getItem('getsemani_profiles'))||{})[mail]||u;
+    // Los correos de ADMIN_EMAILS (los mismos de index.html) siempre son administradores
+    var ADMINS=['getsemaniso2020@gmail.com','balmerarteaga23@gmail.com'];
+    ok=ADMINS.indexOf(mail)>-1 || (p.roles||[]).indexOf('administrador')>-1 || (u.roles||[]).indexOf('administrador')>-1;
+  }catch(e){}
+  if(!ok){ document.documentElement.style.display='none'; location.replace('inicio.html'); }
+})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--paper:#EDEAE1;--line:#D9D2C2;--panel:#FFFEFB;--ink:#21252E;--soft:#565B66;--steel:#3A5A74;--amber:#C1873B;--amber-s:#EEDDBD;--barra:rgb(65,93,128)}
+*{box-sizing:border-box}
+body{margin:0;font-family:'IBM Plex Sans',sans-serif;background:var(--paper);color:var(--ink);font-size:15px}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--steel);outline-offset:2px}
+header{background:var(--barra);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header a{color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.5);padding:8px 14px;border-radius:6px;font-size:14px}
+header a:hover{background:rgba(255,255,255,.14)}
+header h1{font:600 22px 'Newsreader',serif;margin:0}
+main{max-width:920px;margin:0 auto;padding:20px}
+.intro{color:var(--soft);line-height:1.5;margin:0 0 16px}
+#search{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:6px;font:inherit;background:var(--panel);margin-bottom:16px}
+.row{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 18px;margin-bottom:12px;display:flex;gap:16px;justify-content:space-between;flex-wrap:wrap}
+.who{min-width:220px;flex:1}
+.who strong{display:block;font-size:16px}
+.who>span{color:var(--soft);font-size:13.5px;word-break:break-all}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{background:var(--amber-s);border-radius:12px;padding:3px 10px;font-size:12.5px}
+.roles{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.roles label{display:flex;align-items:center;gap:6px;font-size:14px}
+.roles input,.modal input{accent-color:var(--steel);width:16px;height:16px}
+.btn{padding:8px 14px;border:1px solid var(--steel);background:var(--panel);color:var(--steel);border-radius:6px;font-weight:600}
+.btn:hover{background:var(--steel);color:#fff}
+.btn.primary{background:var(--steel);color:#fff}
+.empty{color:var(--soft);text-align:center;padding:30px 0}
+.overlay{position:fixed;inset:0;display:none;pointer-events:none;z-index:50}
+.overlay.show{display:block}
+/* Panel flotante: ~90 % transparente con desenfoque; el texto lleva un halo claro para seguir leyéndose */
+.modal{position:fixed;pointer-events:auto;width:min(520px,calc(100vw - 16px));display:flex;flex-direction:column;border-radius:10px;
+  background:rgba(255,254,251,.10);-webkit-backdrop-filter:blur(18px) saturate(1.2);backdrop-filter:blur(18px) saturate(1.2);
+  border:1px solid rgba(255,255,255,.6);box-shadow:0 24px 50px -18px rgba(33,37,46,.5);text-shadow:0 0 6px rgba(255,254,251,.95),0 0 2px rgba(255,254,251,.95)}
+.modal h2{font:600 20px 'Newsreader',serif;margin:0;padding:18px 20px 10px}
+.modal-body{overflow-y:auto;padding:0 20px;border-top:1px solid rgba(33,37,46,.2);border-bottom:1px solid rgba(33,37,46,.2)}
+fieldset{border:0;padding:0;margin:14px 0}
+legend{font-weight:600;margin-bottom:6px}
+fieldset label{display:flex;align-items:center;gap:8px;padding:5px 0}
+.hint{margin:0;padding:0 20px 10px;color:var(--soft);font-size:13.5px;display:none}
+fieldset label:has(input:disabled){color:#6f737c;opacity:.65}
+fieldset:disabled legend{color:var(--soft)}
+fieldset label[data-bloq]::after{content:' — ya asignado como ' attr(data-bloq);font-size:12.5px;font-style:italic}
+.actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:6px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <a href="inicio.html">← Volver al inicio</a>
+  <h1>Asignar roles y departamentos</h1>
+</header>
+
+<main>
+  <p class="intro">Todas las personas se registran como miembros. Desde aquí les das el rol de director, subdirector o administrador y eliges sus departamentos. Los cambios se aplican la próxima vez que esa persona abra su inicio.</p>
+  <input id="search" type="search" placeholder="Buscar por nombre o correo" aria-label="Buscar personas">
+  <div id="list"></div>
+</main>
+
+<div class="overlay" id="modal" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+  <div class="modal">
+    <h2 id="dTitle"></h2>
+    <p class="hint" id="dHint">Un departamento no puede ser a la vez de Director y de Subdirector.</p>
+    <div class="modal-body" id="dBody"></div>
+    <div class="actions">
+      <button type="button" class="btn" id="dCancel">Cancelar</button>
+      <button type="button" class="btn primary" id="dSave">Guardar</button>
+    </div>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+const ROLES = [['miembro','Miembro'],['director','Director'],['subdirector','Subdirector']];  // los tres roles se pueden marcar o desmarcar libremente
+const DEPTS = ['Ancianos','Aventureros','Conquistadores','Coordinador de Interesados','Diaconisa','Diácono','Dorcas',
+  'Educación','Escuela Sabática','Guías Mayores','Mayordomía','Ministerio de Comunicación','Ministerio de Oración',
+  'Ministerio de Publicaciones','Ministerio de Salud','Ministerio de la Mujer','Ministerio Familiar','Ministerio Infantil',
+  'Ministerio Juvenil','Ministerio Personal','Música y Adoración','Secretaría','Tesorería'];
+
+const read = (k,f) => { try{ return JSON.parse(localStorage.getItem(k)) || f; }catch(e){ return f; } };
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const me = (read('getsemani_user',{}).email || '').toLowerCase();
+let profiles = read('getsemani_profiles', {});   // TODO backend: reemplazar por consultas al servidor
+let editing = null;
+
+const $ = id => document.getElementById(id);
+function persist(){ localStorage.setItem('getsemani_profiles', JSON.stringify(profiles)); }
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800); }
+
+function paint(){
+  const q = $('search').value.trim().toLowerCase();
+  const people = Object.values(profiles)
+    .filter(p => !q || (p.name+' '+p.email).toLowerCase().includes(q))
+    .sort((a,b) => a.name.localeCompare(b.name));
+  const box = $('list');
+  box.innerHTML = people.length ? '' : '<p class="empty">Aún no hay personas registradas en este navegador.</p>';
+  people.forEach(p => {
+    const key = p.email.toLowerCase(), self = key === me, roles = (p.roles && p.roles.length) ? p.roles : ['miembro'];
+    const adminTag = roles.includes('administrador') ? '<span class="chip">Administrador</span>' : '';
+    const chips = [...(p.departamentos_director||[]).map(d=>d+' (Director)'), ...(p.departamentos_subdirector||[]).map(d=>d+' (Subdirector)')]
+      .map(t=>`<span class="chip">${esc(t)}</span>`).join('');
+    const row = document.createElement('div'); row.className = 'row'; row.dataset.key = key;
+    row.innerHTML = `<div class="who"><strong>${esc(p.name)}${self?' (tú)':''}</strong><span>${esc(p.email)}</span><div class="chips">${adminTag}${chips}</div></div>
+      <div class="roles">${ROLES.map(([r,l]) => `<label><input type="checkbox" data-r="${r}" ${roles.includes(r)?'checked':''}> ${l}</label>`).join('')}
+      <button type="button" class="btn">Departamentos</button></div>`;
+    row.querySelectorAll('input').forEach(i => i.addEventListener('change', () => setRole(key, i.dataset.r, i.checked)));
+    row.querySelector('.btn').addEventListener('click', () => openDepts(key));
+    box.appendChild(row);
+  });
+}
+
+function setRole(key, r, on){
+  const p = profiles[key], set = new Set((p.roles && p.roles.length) ? p.roles : ['miembro']);
+  on ? set.add(r) : set.delete(r);
+  p.roles = [...set];   // se conserva 'administrador' si ya lo tenía
+  if(!set.has('director')) p.departamentos_director = [];
+  if(!set.has('subdirector')) p.departamentos_subdirector = [];
+  if(!p.departamentos_director) p.departamentos_director = [];
+  if(!p.departamentos_subdirector) p.departamentos_subdirector = [];
+  persist();
+  toast(set.size ? 'Rol actualizado' : 'Sin ningún rol marcado, la persona seguirá viéndose como miembro');
+  paint();
+  // Marcar un rol ya no abre ninguna ventana; los departamentos se eligen con el botón "Departamentos".
+  // Si el panel de esa persona estaba abierto desde el botón, se mantiene al día:
+  if(editing === key){
+    // Si se quitó un rol con el panel abierto: se reconstruye, o se cierra si ya no es director ni subdirector
+    (set.has('director') || set.has('subdirector')) ? openDepts(key, true) : closeDepts();
+  }
+}
+
+function openDepts(key, quiet){
+  const p = profiles[key], has = r => (p.roles||[]).includes(r);
+  if(!has('director') && !has('subdirector')){ if(!quiet) toast('Primero marca Director o Subdirector'); return; }
+  editing = key;
+  $('dTitle').textContent = 'Departamentos de ' + p.name;
+  // Director: solo su sección. Subdirector: se muestran los dos roles (el de Director se activa solo si también es director)
+  const secciones = [['director','Director de','departamentos_director'], ['subdirector','Subdirector de','departamentos_subdirector']]
+    .filter(x => x[0] === 'director' || has('subdirector'));
+  $('dHint').style.display = secciones.length > 1 ? 'block' : 'none';
+  $('dBody').innerHTML = secciones.map(([r,l,f]) => {
+    const off = !has(r);
+    return `<fieldset data-f="${f}" ${off?'disabled':''}><legend>${l}${off?' (marca el rol Director para elegir)':''}</legend>${DEPTS.map(d =>
+      `<label><input type="checkbox" value="${esc(d)}" ${(p[f]||[]).includes(d)?'checked':''}> ${esc(d)}</label>`).join('')}</fieldset>`;
+  }).join('');
+  syncDepts();
+  $('modal').classList.add('show');
+  placePanel(key);
+}
+/* Coloca el panel justo debajo de los roles de esa persona */
+function placePanel(key){
+  const row = [...document.querySelectorAll('.row')].find(r => r.dataset.key === key);
+  const box = $('modal').querySelector('.modal');
+  const w = Math.min(520, innerWidth - 16);
+  const rect = (row ? row.querySelector('.roles') : document.body).getBoundingClientRect();
+  const top = Math.max(8, Math.min(rect.bottom + 6, innerHeight - 220));
+  box.style.top = top + 'px';
+  box.style.left = Math.max(8, Math.min(rect.right - w, innerWidth - w - 8)) + 'px';
+  box.style.maxHeight = (innerHeight - top - 12) + 'px';
+}
+/* Un departamento no puede estar en Director y en Subdirector a la vez */
+function syncDepts(){
+  const fs = [...$('dBody').querySelectorAll('fieldset')];
+  if(fs.length < 2) return;
+  const [a, b] = fs;   // a = Director, b = Subdirector
+  const mark = (inp, txt) => { inp.disabled = !!txt || !!inp.closest('fieldset').disabled; txt ? inp.parentElement.setAttribute('data-bloq', txt) : inp.parentElement.removeAttribute('data-bloq'); };
+  a.querySelectorAll('input').forEach(ia => {
+    const ib = [...b.querySelectorAll('input')].find(x => x.value === ia.value);
+    if(!ib) return;
+    if(ia.checked){ ib.checked = false; mark(ib, 'Director'); mark(ia, ''); }
+    else if(ib.checked){ mark(ia, 'Subdirector'); mark(ib, ''); }
+    else { mark(ia, ''); mark(ib, ''); }
+  });
+}
+$('dBody').addEventListener('change', syncDepts);
+function closeDepts(){ $('modal').classList.remove('show'); editing = null; }
+
+$('dSave').addEventListener('click', () => {
+  const p = profiles[editing];
+  $('dBody').querySelectorAll('fieldset:not([disabled])').forEach(fs => {
+    p[fs.dataset.f] = [...fs.querySelectorAll('input:checked')].map(i => i.value);
+  });
+  if(p.departamentos_director && p.departamentos_subdirector)
+    p.departamentos_subdirector = p.departamentos_subdirector.filter(d => !p.departamentos_director.includes(d));
+  persist(); closeDepts(); toast('Departamentos guardados'); paint();
+});
+$('dCancel').addEventListener('click', closeDepts);
+document.addEventListener('click', e => { if(editing && !e.target.closest('.modal') && !e.target.closest('.roles')) closeDepts(); });
+addEventListener('resize', () => { if(editing) placePanel(editing); });
+addEventListener('keydown', e => { if(e.key === 'Escape') closeDepts(); });
+$('search').addEventListener('input', paint);
+paint();
+</script>
+</body>
+</html>
