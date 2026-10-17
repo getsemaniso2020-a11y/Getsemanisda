@@ -441,6 +441,18 @@ body.rp-full{overflow:hidden}
   box-shadow:0 6px 16px rgba(0,0,0,.5);opacity:0;transform:translateY(6px);transition:opacity .18s,transform .18s}
 .lc:hover .lc-play,.lc:focus-within .lc-play,.lc.sonando .lc-play{opacity:1;transform:none}
 @media (hover:none){.lc-play{opacity:1;transform:none}}
+.lc-mosaico{position:absolute;inset:0;display:grid;gap:2px}
+.lc-mosaico.m1{grid-template:1fr/1fr}.lc-mosaico.m2{grid-template:1fr/1fr 1fr}.lc-mosaico.m4{grid-template:1fr 1fr/1fr 1fr}
+.lc-tile{position:relative;overflow:hidden;display:grid;place-items:center;color:rgba(255,255,255,.9)}
+.lc-tile svg{position:relative}
+.campos [hidden]{display:none!important}
+.elegir{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.elegir button{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;padding:9px 12px;border:0;border-bottom:1px solid var(--line);background:none;color:inherit;text-align:left}
+.elegir button:last-child{border-bottom:0}
+.elegir button:hover{background:rgba(255,255,255,.07)}
+.elegir button[aria-pressed=true]{background:rgba(240,178,90,.14)}
+.elegir .ord{width:24px;height:24px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:600}
+.elegir button[aria-pressed=true] .ord{background:var(--gold);border-color:var(--gold);color:#1b1204}
 .lc-tit{margin:12px 0 2px;font-weight:600;font-size:15px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .lc.sonando .lc-tit{color:var(--gold)}
 .lc-sub{font-size:13px;color:var(--soft)}
@@ -491,17 +503,21 @@ body.contrast .poster,body.contrast .visor-box{outline:1px solid #fff}
       <summary>Agregar contenido</summary>
       <div class="campos">
         <label>Tipo
-          <select id="mTipo"><option value="video">Video (YouTube o archivo)</option><option value="audio">Audio</option><option value="foto">Foto</option></select>
+          <select id="mTipo"><option value="video">Video (YouTube o archivo)</option><option value="audio">Audio</option><option value="coleccion">Lista de reproducción con canciones sueltas</option><option value="foto">Foto</option></select>
         </label>
         <label id="mCatBox">Categoría
           <select id="mCat"></select>
         </label>
         <label id="mFmtBox">¿Es una canción suelta o una lista de reproducción?
-          <select id="mFmt"><option value="auto">Detectar automáticamente</option><option value="cancion">Canción suelta</option><option value="lista">Lista de reproducción</option></select>
+          <select id="mFmt"><option value="auto">Detectar automáticamente</option><option value="cancion">Canción suelta</option><option value="lista">Lista de reproducción (enlace de YouTube)</option></select>
         </label>
         <label>Título <input id="mTitulo" type="text" maxlength="120"></label>
         <label>Descripción (opcional) <input id="mDesc" type="text" maxlength="200"></label>
-        <label>Enlace (https://…) <input id="mUrl" type="url" placeholder="https://"></label>
+        <label id="mUrlBox">Enlace (https://…) <input id="mUrl" type="url" placeholder="https://"></label>
+        <div id="mPistasBox" hidden>
+          <p class="nota">Toca las canciones que quieres en la lista, en el orden en que sonarán. Solo aparecen canciones sueltas ya publicadas.</p>
+          <div class="elegir" id="mPistas"></div>
+        </div>
         <p class="nota" id="mNota" hidden>Para música o podcast puedes pegar un enlace de YouTube, de una canción o de una lista de reproducción: se reproduce solo el sonido, sin mostrar el video. Si el enlace trae una lista (list=…) se detecta como lista; si no se puede identificar, elige el formato.</p>
         <p class="err" id="mErr" role="alert"></p>
         <div><button class="btn" id="mGuardar" type="button">Publicar</button></div>
@@ -769,14 +785,19 @@ const PATH = {
 const svg = (k,s) => '<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="'+PATH[k]+'"/></svg>';
 const CATS = {predica:'Prédica',matutina:'Matutina',pelicula:'Película',serie:'Serie',musica:'Música',podcast:'Podcast'};
 const VCATS = ['predica','matutina','pelicula','serie'];
-const CAT_TIPO = {video:VCATS, audio:['musica','podcast']};
+const CAT_TIPO = {video:VCATS, audio:['musica','podcast'], coleccion:['musica','podcast']};
 const CATS_PL = {predica:'Prédicas',matutina:'Matutinas',pelicula:'Películas',serie:'Series'};
 /* Un audio es «lista» si así se declaró al publicar; los antiguos se deducen del enlace (list=…) */
-const esLista = it => it.tipo==='audio' && (it.formato ? it.formato==='lista' : !!ytLista(it.url));
-const etiq = it => esLista(it) ? ((CATS[it.cat] || 'Audio') + ', lista de reproducción') : ((it.tipo!=='foto' && CATS[it.cat]) ? CATS[it.cat] : ETIQ[it.tipo]);
+/* Dos tipos de lista de reproducción:
+   · «lista»     → viene de un enlace de YouTube (list=…), como hasta ahora.
+   · «coleccion» → armada con canciones sueltas ya publicadas; guarda los id en it.pistas, en el orden elegido. */
+const esColeccion = it => it.tipo==='audio' && it.formato==='coleccion';
+const esLista = it => it.tipo==='audio' && (it.formato ? (it.formato==='lista' || it.formato==='coleccion') : !!ytLista(it.url));
+const pistasDe = it => { const t = leer(MKEY); return (it.pistas || []).map(id => t.find(x => x.id === id)).filter(x => x && x.tipo==='audio' && !esLista(x)); };
+const etiq = it => esLista(it) ? ((CATS[it.cat] || 'Audio') + (esColeccion(it) ? ', lista de canciones' : ', lista de reproducción')) : ((it.tipo!=='foto' && CATS[it.cat]) ? CATS[it.cat] : ETIQ[it.tipo]);
 const VERBO = {video:'Reproducir',audio:'Escuchar',foto:'Ver foto'};
 const suave = matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth';
-let filtro = 'todo';
+let filtro = 'todo', hookForm = null;
 
 function ytId(u){
   let m = u.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{11})/);
@@ -819,7 +840,7 @@ function arte(it, grande){
 
 function borrar(it){
   if(!confirm('¿Eliminar «' + it.titulo + '»? Esta acción no se puede deshacer.')) return;
-  if(actual() && actual().id === it.id) cerrarRp();
+  if(actual() && (actual().id === it.id || colaDe === it.id)) cerrarRp();
   guardar(MKEY, leer(MKEY).filter(x => x.id !== it.id)); pintar();
 }
 function btnBorrar(it){
@@ -931,18 +952,32 @@ function grupoAudio(titulo, l, conTitulo){
   const box = el('div','pistas'); l.forEach(it => box.appendChild(pistaFila(it, l))); g.appendChild(box);
   return g;
 }
+/* Portada de una lista armada: mosaico con las portadas de sus primeras canciones */
+function mosaico(cv, it){
+  const ps = pistasDe(it), t = ps.length >= 4 ? 4 : ps.length >= 2 ? 2 : 1, m = el('div','lc-mosaico m' + t);
+  (ps.length ? ps.slice(0,t) : [it]).forEach(p => {
+    const c = el('div','lc-tile'), h = tono(p.titulo);
+    c.style.background = 'linear-gradient(135deg,hsl(' + h + ' 55% 34%),hsl(' + h + ' 60% 14%))';
+    portadaAudio(c, p); m.appendChild(c);
+  });
+  cv.appendChild(m);
+}
 function listaCard(it, listas){
   const w = el('div','lc'); w.dataset.id = it.id;
   const b = el('button','lc-btn'); b.type = 'button'; b.setAttribute('aria-label','Lista de reproducción: ' + it.titulo);
   const st = el('div','lc-stack'), cv = el('div','lc-cover');
-  const art = el('div','art'); art.style.setProperty('--h', tono(it.titulo)); art.innerHTML = svg('lista',56); cv.appendChild(art);
-  const y = ytId(it.url);
-  if(y){ const im = new Image(); im.alt = ''; im.loading = 'lazy'; im.src = 'https://i.ytimg.com/vi/' + y + '/hqdefault.jpg'; im.onerror = () => im.remove(); cv.appendChild(im); }
+  if(esColeccion(it)) mosaico(cv, it);
+  else {
+    const art = el('div','art'); art.style.setProperty('--h', tono(it.titulo)); art.innerHTML = svg('lista',56); cv.appendChild(art);
+    const y = ytId(it.url);
+    if(y){ const im = new Image(); im.alt = ''; im.loading = 'lazy'; im.src = 'https://i.ytimg.com/vi/' + y + '/hqdefault.jpg'; im.onerror = () => im.remove(); cv.appendChild(im); }
+  }
   const tg = el('span','lc-tag'); tg.innerHTML = svg('lista',14); tg.appendChild(el('span',null,'Lista')); cv.appendChild(tg);
   const pl = el('span','lc-play'); pl.innerHTML = svg('video',24); cv.appendChild(pl);
   st.appendChild(cv); b.appendChild(st);
   b.appendChild(el('div','lc-tit',it.titulo));
-  b.appendChild(el('div','lc-sub','Lista de reproducción' + (CATS[it.cat] ? ', ' + CATS[it.cat].toLowerCase() : '')));
+  if(esColeccion(it)){ const n = pistasDe(it).length; b.appendChild(el('div','lc-sub','Lista de canciones · ' + n + (n===1 ? ' canción' : ' canciones'))); }
+  else b.appendChild(el('div','lc-sub','Lista de YouTube' + (CATS[it.cat] ? ', ' + CATS[it.cat].toLowerCase() : '')));
   b.addEventListener('click', () => alternar(it, listas));
   w.appendChild(b);
   if(PUEDE_BORRAR(it)) w.appendChild(btnBorrar(it));
@@ -970,6 +1005,7 @@ function bloqueAudio(auds, banner){
 }
 
 function pintar(){
+  if(hookForm) hookForm();
   const todos = leer(MKEY);
   pintarHero(todos[0]);
   const cont = document.getElementById('filas'); cont.innerHTML = '';
@@ -1002,7 +1038,7 @@ function pintar(){
    Archivos de audio: etiqueta <audio>. Enlaces de YouTube: reproductor oficial de YouTube oculto (solo suena el audio). */
 const rp = document.getElementById('rp'), au = document.getElementById('rpAudio'), rpPlay = document.getElementById('rpPlay'),
       rpSeek = document.getElementById('rpSeek');
-let cola = [], idx = -1, arrastrando = false, ytp = null, ytListo = false, ytTimer = null, volumen = .8;
+let cola = [], colaDe = null, colaNom = '', idx = -1, arrastrando = false, ytp = null, ytListo = false, ytTimer = null, volumen = .8;
 const actual = () => cola[idx] || null;
 const usaYT = () => { const c = actual(); return !!(c && c.tipo==='audio' && (ytId(c.url) || ytLista(c.url))); };
 let ytFallo = false;   // true cuando la lista no se pudo cargar y se reproduce solo la canción del enlace
@@ -1041,7 +1077,7 @@ function pintarOpts(){
 }
 function pintarCola(){
   const ol = document.getElementById('rpCola'); ol.innerHTML = '';
-  document.getElementById('rpColaN').textContent = cola.length ? '(' + cola.length + ')' : '';
+  document.getElementById('rpColaN').textContent = cola.length ? '(' + cola.length + ')' + (colaNom ? ' · ' + colaNom : '') : '';
   let act = null;
   cola.forEach((it, i) => {
     const li = el('li', i === idx ? 'actual' : null), b = el('button'); b.type = 'button';
@@ -1075,7 +1111,7 @@ function marcarSonando(){
     r.querySelector('.pf-play').innerHTML = svg(on && suena ? 'pausa' : 'video', 22);
   });
   document.querySelectorAll('.lc').forEach(r => {
-    const on = cur && r.dataset.id === cur.id;
+    const on = cur && (r.dataset.id === cur.id || r.dataset.id === colaDe);
     r.classList.toggle('sonando', !!on);
     r.querySelector('.lc-play').innerHTML = svg(on && suena ? 'pausa' : 'video', 24);
   });
@@ -1166,20 +1202,28 @@ function cargar(){
   if(usaYT()){ au.pause(); au.removeAttribute('src'); au.load(); ytFallo = false; ytCargar(); }
   else { ytParar(); au.src = it.url; au.play().catch(() => {}); }
   document.getElementById('rpTit').textContent = it.titulo;
-  aviso(it.desc || etiq(it));
+  aviso(colaDe ? colaNom + ' · canción ' + (idx + 1) + ' de ' + cola.length : (it.desc || etiq(it)));
   const cv = document.getElementById('rpCover'); cv.style.setProperty('--h', tono(it.titulo)); cv.style.position = 'relative'; portadaAudio(cv, it);
   rp.style.setProperty('--h', tono(it.titulo)); aplicarVel();
   rp.hidden = false; document.body.classList.add('rp-on'); marcarSonando();
   if(rp.classList.contains('ampliado')) pintarCola();
 }
-function reproducir(it, lista){ cola = (lista && lista.length) ? lista : [it]; idx = Math.max(0, cola.findIndex(x => x.id === it.id)); cargar(); ampliar(true); }
+function reproducir(it, lista){
+  if(esColeccion(it)){   // lista armada: suena su cola de canciones, en el orden elegido
+    const ps = pistasDe(it); if(!ps.length){ alert('Esta lista ya no tiene canciones disponibles.'); return; }
+    colaDe = it.id; colaNom = it.titulo; cola = ps; idx = 0; cargar(); ampliar(true); return;
+  }
+  colaDe = null; colaNom = '';
+  cola = ((lista && lista.length) ? lista : [it]).filter(x => !esColeccion(x));
+  idx = Math.max(0, cola.findIndex(x => x.id === it.id)); cargar(); ampliar(true);
+}
 function pausaPlay(){
   if(!actual()) return;
   if(usaYT()){ if(!ytListo) return; pausado() ? ytp.playVideo() : ytp.pauseVideo(); }
   else au.paused ? au.play().catch(() => {}) : au.pause();
 }
 function alternar(it, lista){
-  if(actual() && actual().id === it.id) pausaPlay(); else reproducir(it, lista);
+  if(esColeccion(it) ? colaDe === it.id : (actual() && actual().id === it.id)) pausaPlay(); else reproducir(it, lista);
 }
 function buscar(t){ if(usaYT()){ if(ytListo) ytp.seekTo(t, true); } else au.currentTime = t; }
 function mover(d){
@@ -1197,7 +1241,7 @@ function mover(d){
 }
 function cerrarRp(){
   au.pause(); au.removeAttribute('src'); au.load(); ytParar(); ampliar(false);
-  rp.hidden = true; document.body.classList.remove('rp-on'); cola = []; idx = -1; marcarSonando();
+  rp.hidden = true; document.body.classList.remove('rp-on'); cola = []; colaDe = null; colaNom = ''; idx = -1; marcarSonando();
 }
 rpPlay.addEventListener('click', pausaPlay);
 document.getElementById('rpPrev').addEventListener('click', () => mover(-1));
@@ -1287,11 +1331,27 @@ document.getElementById('tabs').addEventListener('click', e=>{
 });
 if(PUEDE_PUBLICAR){
   document.getElementById('formBox').hidden = false;
+  let sel = [];   // id de las canciones elegidas, en orden
+  function pintarElegir(){
+    const box = document.getElementById('mPistas'), st = box.scrollTop, l = leer(MKEY).filter(x => x.tipo==='audio' && !esLista(x));
+    box.innerHTML = ''; sel = sel.filter(id => l.some(x => x.id === id));
+    if(!l.length){ box.appendChild(el('p','nota','Aún no hay canciones sueltas. Publica primero algunas canciones.')); return; }
+    l.forEach(it => {
+      const k = sel.indexOf(it.id), b = el('button'); b.type = 'button'; b.setAttribute('aria-pressed', k >= 0);
+      b.append(el('span','ord', k >= 0 ? String(k + 1) : ''), el('span','q-tit',it.titulo), el('span','q-sub',CATS[it.cat] || 'Audio'));
+      b.addEventListener('click', () => { const i = sel.indexOf(it.id); if(i >= 0) sel.splice(i,1); else sel.push(it.id); pintarElegir(); });
+      box.appendChild(b);
+    });
+    box.scrollTop = st;
+  }
+  hookForm = pintarElegir;
   const verCat = () => {
     const l = CAT_TIPO[document.getElementById('mTipo').value], sel = document.getElementById('mCat');
     document.getElementById('mCatBox').hidden = !l; sel.innerHTML = '';
-    const esAudio = document.getElementById('mTipo').value === 'audio';
+    const vt = document.getElementById('mTipo').value, esAudio = vt === 'audio', esCol = vt === 'coleccion';
     document.getElementById('mNota').hidden = !esAudio; document.getElementById('mFmtBox').hidden = !esAudio;
+    document.getElementById('mUrlBox').hidden = esCol; document.getElementById('mPistasBox').hidden = !esCol;
+    if(esCol) pintarElegir();
     (l || []).forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = CATS[k]; sel.appendChild(o); });
   };
   document.getElementById('mTipo').addEventListener('change', verCat); verCat();
@@ -1300,6 +1360,15 @@ if(PUEDE_PUBLICAR){
     const tipo = document.getElementById('mTipo').value, titulo = document.getElementById('mTitulo').value.trim(),
           cat = document.getElementById('mCat').value, desc = document.getElementById('mDesc').value.trim(), url = document.getElementById('mUrl').value.trim();
     if(!titulo){ err.textContent='Escribe un título.'; return; }
+    if(tipo === 'coleccion'){   // lista armada con canciones sueltas: no lleva enlace
+      if(sel.length < 2){ err.textContent = 'Elige al menos dos canciones para la lista.'; return; }
+      err.textContent = '';
+      const all = leer(MKEY);
+      all.unshift({id:Date.now().toString(36), tipo:'audio', cat, formato:'coleccion', titulo, desc, url:'', pistas:sel.slice(), fecha:ES_FECHA(), email:user.email});
+      guardar(MKEY, all); sel = [];
+      ['mTitulo','mDesc'].forEach(i => document.getElementById(i).value = '');
+      pintar(); return;
+    }
     if(!urlOk(url)){ err.textContent='El enlace debe empezar por http:// o https://'; return; }
     let formato = '';
     if(tipo === 'audio'){
