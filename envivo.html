@@ -203,6 +203,13 @@ body.collapsed main{margin-left:0}
 .aviso-mini span{font-size:12.5px;color:var(--soft)}
 .estado{display:inline-block;margin:-6px 0 12px;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;background:var(--amber-s);color:var(--ink)}
 .estado.propia{background:#c62828;color:#fff}
+
+/* ---------- En vivo: video compacto + panel lateral ---------- */
+.vivo-layout{display:grid;grid-template-columns:minmax(0,640px) minmax(240px,1fr);gap:24px;align-items:start}
+.vivo-layout .pantalla{width:100%}
+.vivo-info{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px 22px}
+.vivo-info .acciones{padding:8px 0 4px}
+@media (max-width:1000px){.vivo-layout{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -234,25 +241,29 @@ body.collapsed main{margin-left:0}
 </aside>
 
 <main>
-  <div class="page-head">
-    <h1>En vivo</h1>
-    <p id="subtitulo">Programación de Hope Channel Inter-America, en directo.</p>
-    <span class="estado" id="estado" hidden></span>
+  <div class="vivo-layout">
+    <div class="pantalla">
+      <iframe id="reproductor"
+        src="https://jstre.am/embed/jsl:EC0Mq0i6HJU6IZ49d0as"
+        title="Transmisión en vivo de Hope Channel Inter-America"
+        allow="autoplay; fullscreen; encrypted-media"
+        allowfullscreen></iframe>
+    </div>
+    <aside class="vivo-info">
+      <div class="page-head">
+        <h1>En vivo</h1>
+        <p id="subtitulo">Programación de Hope Channel Inter-America, en directo.</p>
+        <span class="estado" id="estado" hidden></span>
+      </div>
+      <div class="acciones">
+        <button class="btn" id="recargar" type="button">Recargar transmisión</button>
+        <a class="btn sec" id="verOrigen" href="https://hopechannelinteramerica.org/streaming" target="_blank" rel="noopener"><span id="verOrigenTxt">Ver en Hope Channel</span></a>
+      </div>
+      <p class="nota">Si el video no carga, pulsa «Recargar transmisión». Si sigue sin verse, ábrelo directamente en el sitio de Hope Channel.</p>
+      <p class="nota" id="notaPrioridad"></p>
+      <p class="nota">Señal de <a href="https://hopechannelinteramerica.org/" target="_blank" rel="noopener">Hope Channel Inter-America</a>.</p>
+    </aside>
   </div>
-  <div class="pantalla">
-    <iframe id="reproductor"
-      src="https://jstre.am/embed/jsl:EC0Mq0i6HJU6IZ49d0as"
-      title="Transmisión en vivo de Hope Channel Inter-America"
-      allow="autoplay; fullscreen; encrypted-media"
-      allowfullscreen></iframe>
-  </div>
-  <div class="acciones">
-    <button class="btn" id="recargar" type="button">Recargar transmisión</button>
-    <a class="btn sec" id="verOrigen" href="https://hopechannelinteramerica.org/streaming" target="_blank" rel="noopener"><span id="verOrigenTxt">Ver en Hope Channel</span></a>
-  </div>
-  <p class="nota">Si el video no carga, pulsa «Recargar transmisión». Si sigue sin verse, ábrelo directamente en el sitio de Hope Channel.</p>
-  <p class="nota" id="notaPrioridad"></p>
-  <p class="nota">Señal de <a href="https://hopechannelinteramerica.org/" target="_blank" rel="noopener">Hope Channel Inter-America</a>.</p>
 </main>
 
 <button class="fab fab-a11y" id="a11yBtn" aria-label="Opciones de accesibilidad" aria-expanded="false">
