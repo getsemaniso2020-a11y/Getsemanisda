@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Getsemaní — Anuncios</title>
+<script>
+/* Guarda de acceso: sin sesión guardada por el login, se vuelve a index.html. */
+(function(){
+  var ok=false;
+  try{ var u=JSON.parse(localStorage.getItem('getsemani_user')); ok=!!(u&&u.name); }catch(e){}
+  if(!ok && !/[?&]demo=1/.test(location.search)){
+    document.documentElement.style.display='none';
+    location.replace('index.html');
+  }
+})();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDEAE1; --line:#D9D2C2; --panel:#FFFEFB; --ink:#21252E; --soft:#565B66;
+  --steel:#3A5A74; --steel-d:#2A4258; --amber:#C1873B; --amber-s:#EEDDBD;
+  --barra:rgb(65,93,128); --barra-d:rgb(50,74,102);
+  --bar-h:76.8px; --logo-h:78.4px; --side-w:264px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:'IBM Plex Sans',sans-serif;color:var(--ink);background:var(--paper);font-size:15px}
+body.big{font-size:18px}
+body.contrast{--paper:#fff;--line:#000;--ink:#000;--soft:#000}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--steel);outline-offset:2px}
+
+/* ---------- Barra superior ---------- */
+.topbar{position:fixed;inset:0 0 auto 0;height:var(--bar-h);z-index:30;display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;background:var(--barra);border-bottom:1px solid var(--barra-d);color:#fff}
+.brand{display:flex;text-decoration:none;color:inherit}
+.brand img{height:var(--logo-h);width:auto;max-width:260px;object-fit:contain;display:block}
+.topbar>.burger{margin-right:auto}
+.user{position:relative}
+.user-btn{display:flex;align-items:center;gap:12px;background:none;border:0;padding:4px;border-radius:30px;color:inherit}
+.user-txt{text-align:right;line-height:1.25}
+.user-txt strong{display:block;font-weight:600;font-size:14px}
+.user-txt span{font-size:12.5px;color:rgba(255,255,255,.85)}
+.avatar{width:44px;height:44px;border-radius:50%;background:var(--steel);color:#fff;display:grid;place-items:center;
+  font-weight:600;overflow:hidden;border:2px solid rgba(255,255,255,.7)}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.menu-user{position:absolute;right:0;top:calc(100% + 8px);min-width:210px;background:var(--panel);border:1px solid var(--line);color:var(--ink);
+  border-radius:8px;box-shadow:0 18px 36px -18px rgba(33,37,46,.5);padding:6px;display:none}
+.menu-user.open{display:block}
+.menu-user button{display:block;width:100%;text-align:left;padding:10px 12px;background:none;border:0;border-radius:6px;color:inherit}
+.menu-user button:hover{background:var(--paper)}
+
+/* ---------- Menú lateral ---------- */
+.side{position:fixed;top:var(--bar-h);bottom:0;left:0;width:var(--side-w);background:var(--barra);border-right:1px solid var(--barra-d);color:#fff;
+  overflow-y:auto;z-index:20;transition:transform .22s ease}
+body.collapsed .side{transform:translateX(-100%)}
+.side-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.25)}
+.burger{width:40px;height:40px;border:0;background:rgba(255,255,255,.16);border-radius:8px;display:grid;place-items:center;color:#fff}
+.burger:hover{background:rgba(255,255,255,.28)}
+.side-head span{font-weight:600}
+.nav{list-style:none;margin:0;padding:6px 0}
+.nav a,.nav .group>button{display:flex;align-items:center;gap:10px;width:100%;padding:12px 18px;color:#fff;text-decoration:none;
+  background:none;border:0;border-bottom:1px solid rgba(255,255,255,.2);text-align:left}
+.nav a:hover,.nav .group>button:hover{background:rgba(255,255,255,.14)}
+.nav a[aria-current="page"]{background:rgba(255,255,255,.22);font-weight:600;box-shadow:inset 4px 0 var(--amber-s)}
+.nav-title{padding:14px 18px 6px;font-size:12.5px;color:rgba(255,255,255,.8);font-weight:600}
+.nav .caret{margin-left:auto}
+.topbar :focus-visible,.side :focus-visible{outline-color:#fff}
+.nav .group .sub{display:none;position:fixed;left:var(--side-w);top:var(--bar-h);width:310px;max-height:calc(100vh - var(--bar-h) - 16px);overflow-y:auto;
+  background:rgba(65,93,128,.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#fff;border:1px solid rgba(255,255,255,.25);border-left:0;border-radius:0 10px 10px 0;box-shadow:18px 18px 40px -18px rgba(33,37,46,.5);z-index:25;list-style:none;margin:0;padding:0}
+.nav .group.open .sub{display:block}
+.nav .group .sub a{justify-content:space-between;gap:8px;padding:10px 18px}
+.nav .sub .empty{padding:12px 18px;font-size:13.5px;opacity:.85}
+.tag{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--amber-s);color:var(--ink);font-weight:600;white-space:nowrap}
+body.collapsed .nav .group .sub{display:none!important}
+
+/* ---------- Contenido ---------- */
+main{margin:var(--bar-h) 0 0 var(--side-w);padding:24px 20px 60px;transition:margin .22s ease}
+body.collapsed main{margin-left:0}
+.wrap{max-width:1240px;margin:0 auto}
+.page-head h1{font:600 clamp(26px,3.4vw,34px) 'Newsreader',serif;margin:0 0 4px}
+.page-head p{margin:0 0 18px;color:var(--soft)}
+.btn{font:inherit;font-weight:600;color:#fff;background:var(--steel);border:1px solid var(--steel);border-radius:6px;padding:10px 16px;text-decoration:none;display:inline-block}
+.btn:hover{background:var(--steel-d)}
+.btn.sec{background:transparent;color:var(--ink);border-color:var(--soft)}
+.btn.sec:hover{background:var(--amber-s)}
+.btn.mini{padding:5px 10px;font-size:13px;font-weight:500}
+.btn.danger{background:transparent;color:#a32020;border-color:#a32020}
+.btn.danger:hover{background:#f6dcdc}
+
+/* Filtros */
+.filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 20px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tabs button{padding:8px 16px;border-radius:20px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.tabs button[aria-pressed="true"]{background:var(--steel);border-color:var(--steel);color:#fff}
+.filtros select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);margin-left:auto;max-width:100%}
+
+/* Formulario */
+.form-panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 20px;margin-bottom:24px}
+.form-panel summary{cursor:pointer;font-weight:600}
+.campos{display:grid;gap:14px;margin-top:16px}
+.fila{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.form-panel label,.form-panel .lbl{display:grid;gap:4px;font-size:13.5px;font-weight:600}
+.form-panel input,.form-panel select,.form-panel textarea{font:inherit;font-weight:400;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);width:100%}
+.form-panel textarea{min-height:100px;resize:vertical}
+.form-panel .hint{font-weight:400;color:var(--soft);font-size:12.5px}
+.deptos{display:flex;flex-wrap:wrap;gap:8px;max-height:170px;overflow-y:auto;padding:4px 0}
+.deptos label{display:flex;align-items:center;gap:6px;font-weight:500;font-size:13.5px;padding:6px 12px;border:1px solid var(--line);border-radius:20px;background:#fff;cursor:pointer;width:auto}
+.deptos label:has(input:checked){background:var(--amber-s);border-color:var(--amber)}
+.deptos input{width:auto;margin:0}
+.preview{max-width:240px;border-radius:6px;border:1px solid var(--line);display:none}
+.err{color:#a32020;font-size:13.5px;min-height:1.2em;margin:0}
+
+/* Tarjetas de evento */
+.lista{display:grid;gap:22px}
+.evento{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,3fr);background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--amber);border-radius:6px;overflow:hidden}
+.evento.pasado{opacity:.72;border-left-color:var(--soft)}
+.flyer{background:#14171d;display:grid;place-items:center;min-height:320px}
+.flyer button{border:0;padding:0;background:none;width:100%;height:100%;display:block}
+.flyer img{width:100%;height:100%;object-fit:contain;display:block;max-height:640px}
+.flyer.sin{background:linear-gradient(135deg,var(--steel),var(--steel-d));color:#fff;text-align:center;padding:20px;font:600 22px 'Newsreader',serif}
+.info{padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.info h3{font:600 21px/1.15 'Newsreader',serif;margin:0;overflow-wrap:anywhere}
+.badges{display:flex;flex-wrap:wrap;gap:6px}
+.badge{font-size:12px;font-weight:600;padding:3px 10px;border-radius:12px;background:var(--amber-s)}
+.badge.est{background:var(--steel);color:#fff}
+.badge.est.fin{background:var(--soft)}
+.datos{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;margin:0;font-size:13.5px;overflow-wrap:anywhere}
+.datos dt{font-weight:600;color:var(--soft)}
+.datos dd{margin:0}
+.desc{margin:0;line-height:1.5;font-size:13.5px;white-space:pre-wrap;color:var(--ink)}
+.pie{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:auto;padding-top:6px;font-size:12.5px;color:var(--soft)}
+.pie .acc{margin-left:auto;display:flex;gap:8px}
+.vacio{background:var(--panel);border:1px dashed var(--line);border-radius:6px;padding:32px;text-align:center;color:var(--soft)}
+
+[hidden]{display:none!important}
+.form-panel .modos{display:flex;flex-wrap:wrap;gap:8px}
+.form-panel .modos label{display:flex;align-items:center;gap:6px;font-weight:500;font-size:13.5px;padding:6px 12px;border:1px solid var(--line);border-radius:20px;background:#fff;cursor:pointer}
+.form-panel .modos input{width:auto;margin:0}
+.form-panel .modos label:has(input:checked){background:var(--amber-s);border-color:var(--amber)}
+.form-panel .chk{display:flex;align-items:center;gap:8px;font-weight:500}
+.form-panel .chk input{width:auto;margin:0}
+.evento.solo{grid-template-columns:1fr}
+.badge.tipo{background:var(--ink);color:#fff}
+.vnota{display:grid;place-items:center;margin:0;padding:20px;text-align:center;color:#d8d8d8;font-size:14px;width:100%;height:100%}
+.flyer.dual{overflow:hidden;display:flex;flex-direction:column;align-items:stretch;background:#0d0f14}
+.flyer.dual .medios{position:relative;flex:1;min-height:420px;overflow:hidden}
+.flyer.dual .capa{position:absolute;inset:0;width:100%;height:100%;display:block;border:0;padding:0;background:none;overflow:hidden;
+  opacity:0;visibility:hidden;transform:scale(.96);transition:opacity .45s ease,transform .45s ease,visibility .45s}
+.flyer.dual .capa.on{opacity:1;visibility:visible;transform:none}
+.flyer.dual .capa img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;max-height:none}
+.flyer.dual .capa iframe,.flyer.dual .capa video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+.flyer.dual .poster{display:grid;place-items:center}
+.flyer.dual .poster{background:linear-gradient(135deg,var(--steel),var(--steel-d));color:#fff;text-align:center;padding:20px;font:600 24px 'Newsreader',serif}
+.conmuta{position:relative;z-index:3;flex:none;display:flex;justify-content:center;gap:6px;padding:8px;background:#0d0f14;border-top:1px solid rgba(255,255,255,.14)}
+.conmuta button{width:auto;height:auto;display:block;border:1px solid rgba(255,255,255,.35);background:none;color:#fff;font-size:13px;font-weight:600;padding:6px 16px;border-radius:20px}
+.conmuta button[aria-pressed="true"]{background:#fff;color:var(--ink);border-color:#fff}
+
+/* Visor del flyer */
+.visor{position:fixed;inset:0;background:rgba(10,12,18,.88);z-index:60;display:none;place-items:center;padding:20px}
+.visor.open{display:grid}
+.visor img{max-width:min(94vw,900px);max-height:90vh;border-radius:6px}
+.visor button{position:absolute;top:16px;right:20px;font-size:30px;color:#fff;background:none;border:0}
+
+/* Flotantes */
+.fab{position:fixed;right:18px;z-index:40;width:52px;height:52px;border-radius:50%;border:0;display:grid;place-items:center;color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.fab-a11y{bottom:50%;background:#0f3a63}
+.a11y-panel{position:fixed;right:80px;bottom:50%;z-index:40;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px;display:none;gap:6px;flex-direction:column}
+.a11y-panel.open{display:flex}
+.a11y-panel button{padding:9px 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);text-align:left}
+
+@media (max-width:860px){
+  :root{--side-w:260px}
+  .side{transform:translateX(-100%);box-shadow:0 0 40px rgba(0,0,0,.25)}
+  body.open-mobile .side{transform:none}
+  body.collapsed .side{transform:translateX(-100%)}
+  main,body.collapsed main{margin-left:0;padding:16px 12px 60px}
+  .user-txt{display:none}
+  .evento{grid-template-columns:1fr}
+  .flyer{min-height:0}
+  .flyer.dual .medios{aspect-ratio:4/5;max-height:480px;min-height:0;flex:none}
+  .nav .group .sub{left:12px;width:calc(100vw - 24px);border-left:1px solid rgba(255,255,255,.25);border-radius:10px}
+  body:not(.open-mobile) .nav .group .sub{display:none!important}
+  .fab-a11y{bottom:90px}.a11y-panel{bottom:90px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="inicio.html" aria-label="Ir al inicio">
+    <img src="imagenes/adventist-symbol--white%20Horizontal.png" width="4484" height="2138" alt="Getsemaní" onerror="this.style.display='none'">
+  </a>
+  <div class="user">
+    <button class="user-btn" id="userBtn" aria-haspopup="true" aria-expanded="false">
+      <span class="user-txt"><strong id="uName">Nombre de usuario</strong><span id="uRole"></span></span>
+      <span class="avatar" id="uAvatar"></span>
+    </button>
+    <div class="menu-user" id="userMenu">
+      <button type="button" id="goProfile">Mi perfil</button>
+      <button type="button" id="logout">Cerrar sesión</button>
+    </div>
+  </div>
+</header>
+
+<aside class="side" id="side" aria-label="Menú principal">
+  <div class="side-head">
+    <button class="burger" id="burger" aria-label="Mostrar u ocultar menú">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="6" r="2"/><rect x="9" y="5" width="12" height="2" rx="1"/><circle cx="4" cy="12" r="2"/><rect x="9" y="11" width="12" height="2" rx="1"/><circle cx="4" cy="18" r="2"/><rect x="9" y="17" width="12" height="2" rx="1"/></svg>
+    </button>
+    <span>Anuncios</span>
+  </div>
+  <ul class="nav" id="nav"></ul>
+</aside>
+
+<main>
+  <div class="wrap">
+    <div class="page-head">
+      <h1>Anuncios</h1>
+      <p>Eventos y avisos informativos de la iglesia, con su flyer, video, fecha, horario, lugar y los departamentos que los organizan.</p>
+    </div>
+
+    <details class="form-panel" id="formPanel" hidden>
+      <summary id="formTitulo">Publicar un anuncio</summary>
+      <form class="campos" id="form" novalidate>
+        <label>Tipo de anuncio
+          <select id="fTipo">
+            <option value="evento">Evento (con fecha, horario y lugar)</option>
+            <option value="informativo">Informativo (sin fecha ni lugar)</option>
+          </select>
+        </label>
+
+        <label>Título
+          <input type="text" id="fTitulo" maxlength="120" placeholder="Ej.: Retiro de jóvenes" required>
+        </label>
+
+        <div class="lbl">Departamentos promotores
+          <div class="deptos" id="fDeptos"></div>
+          <span class="hint">Marca uno o varios.</span>
+        </div>
+
+        <div id="bloqueEvento" class="campos" style="margin-top:0">
+        <div class="fila">
+          <label>Fecha
+            <input type="date" id="fFecha" required>
+          </label>
+          <label>Hora de inicio
+            <input type="time" id="fInicio" required>
+          </label>
+          <label>Hora de fin <span class="hint">(opcional)</span>
+            <input type="time" id="fFin">
+          </label>
+        </div>
+
+        <div class="fila">
+          <label>Lugar
+            <input type="text" id="fLugar" maxlength="120" placeholder="Ej.: Templo principal" required>
+          </label>
+          <label>Ubicación (dirección o enlace de mapa)
+            <input type="text" id="fUbicacion" maxlength="300" placeholder="Calle 10 # 5-20, Bogotá  ·  o enlace de Google Maps">
+          </label>
+        </div>
+        </div>
+
+        <label>Descripción <span class="hint">(opcional)</span>
+          <textarea id="fDesc" maxlength="1500" placeholder="Qué se hará, a quién va dirigido, qué llevar…"></textarea>
+        </label>
+
+        <div class="lbl">Video promocional <span class="hint">(opcional)</span>
+          <div class="modos">
+            <label id="modoMantener" hidden><input type="radio" name="fVideoModo" value="mantener"> Mantener el video actual</label>
+            <label><input type="radio" name="fVideoModo" value="ninguno" checked> Sin video</label>
+            <label><input type="radio" name="fVideoModo" value="youtube"> Enlace de YouTube</label>
+            <label><input type="radio" name="fVideoModo" value="archivo"> Cargar un video</label>
+          </div>
+          <input type="url" id="fYoutube" placeholder="https://www.youtube.com/watch?v=..." hidden>
+          <input type="file" id="fVideo" accept="video/*" hidden>
+          <span class="hint" id="fVideoHint" hidden>Máximo 200 MB. Un video cargado se guarda solo en este navegador; para que lo vean todos los miembros, usa YouTube.</span>
+        </div>
+
+        <label>Flyer (imagen) <span class="hint">(opcional)</span>
+          <input type="file" id="fFlyer" accept="image/*">
+          <span class="hint">JPG o PNG. Se ajusta automáticamente para guardarlo. Al editar, deja vacío para conservar el actual.</span>
+        </label>
+        <label class="chk" id="quitarFlyerBox" hidden><input type="checkbox" id="fQuitarFlyer"> Quitar el flyer actual</label>
+        <img class="preview" id="fPreview" alt="Vista previa del flyer">
+
+        <p class="err" id="fErr" role="alert"></p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" type="submit" id="fSubmit">Publicar anuncio</button><button class="btn sec" type="button" id="fCancel" hidden>Cancelar edición</button></div>
+      </form>
+    </details>
+
+    <div class="filtros">
+      <div class="tabs" id="tabs">
+        <button type="button" data-f="proximos" aria-pressed="true">Vigentes</button>
+        <button type="button" data-f="pasados" aria-pressed="false">Pasados</button>
+        <button type="button" data-f="todos" aria-pressed="false">Todos</button>
+      </div>
+      <select id="fTipoF" aria-label="Filtrar por tipo" style="margin-left:auto">
+        <option value="">Eventos e informativos</option>
+        <option value="evento">Solo eventos</option>
+        <option value="informativo">Solo informativos</option>
+      </select>
+      <select id="fDepto" aria-label="Filtrar por departamento" style="margin-left:0"><option value="">Todos los departamentos</option></select>
+    </div>
+
+    <div class="lista" id="lista"></div>
+  </div>
+</main>
+
+<div class="visor" id="visor" role="dialog" aria-label="Flyer ampliado"><button type="button" id="visorX" aria-label="Cerrar">×</button><img id="visorImg" alt=""></div>
+
+<button class="fab fab-a11y" id="a11yBtn" aria-label="Opciones de accesibilidad" aria-expanded="false">
+  <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="4" r="2"/><path d="M4 8.5l1-1.7C8 7.7 10 8 12 8s4-.3 7-1.2l1 1.7c-1.8.6-3.4 1-5 1.2V13l2 7-2 .7L12.5 15h-1L9 20.7 7 20l2-7V9.7c-1.6-.2-3.2-.6-5-1.2z"/></svg>
+</button>
+<div class="a11y-panel" id="a11yPanel">
+  <button type="button" data-a="big">Aumentar texto</button>
+  <button type="button" data-a="contrast">Alto contraste</button>
+  <button type="button" data-a="reset">Restablecer</button>
+</div>
+
+<script>
+/* ============ USUARIO (misma lógica que inicio.html) ============ */
+const PAGINA='anuncios.html';
+function loadUser(){
+  try{
+    const u = JSON.parse(localStorage.getItem('getsemani_user'));
+    if(u && u.name){
+      let p=null; try{ p=(JSON.parse(localStorage.getItem('getsemani_profiles'))||{})[(u.email||'').toLowerCase()]; }catch(e){}
+      const s = p || u;
+      const roles = (s.roles && s.roles.length) ? [...s.roles] : ['miembro'];
+      const ADMINS = ['getsemaniso2020@gmail.com','balmerarteaga23@gmail.com'];
+      if(ADMINS.includes((u.email||'').toLowerCase()) && !roles.includes('administrador')) roles.push('administrador');
+      return { name:u.name, email:u.email||'', photo:u.photo||'', roles,
+        cd: roles.includes('director')    ? (s.departamentos_director    || []) : [],
+        cs: roles.includes('subdirector') ? (s.departamentos_subdirector || []) : [] };
+    }
+  }catch(e){}
+  return null;
+}
+function requireSession(){ if(!loadUser()){ document.documentElement.style.display='none'; location.replace('index.html'); } }
+addEventListener('pageshow', requireSession);
+addEventListener('storage', e => { if(e.key==='getsemani_user') requireSession(); });
+const user = loadUser();
+if(!user) throw new Error('Sin sesión');
+
+const DEPARTAMENTOS = ['Ancianos','Aventureros','Conquistadores','Coordinador de Interesados','Diaconisa','Diácono','Dorcas',
+  'Educación','Escuela Sabática','Guías Mayores','Mayordomía','Ministerio de Comunicación','Ministerio de Oración',
+  'Ministerio de Publicaciones','Ministerio de Salud','Ministerio de la Mujer','Ministerio Familiar','Ministerio Infantil',
+  'Ministerio Juvenil','Ministerio Personal','Música y Adoración','Secretaría','Tesorería'];
+const ROLE_LABEL = {administrador:'Administrador',director:'Director',subdirector:'Subdirector',miembro:'Miembro de iglesia'};
+const isAdmin = user.roles.includes('administrador'), isDir = user.roles.includes('director'), isSub = user.roles.includes('subdirector');
+const puedePublicar = isAdmin || isDir || isSub;
+
+const slug = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-');
+const initials = () => user.name.split(' ').slice(0,2).map(p=>p[0]).join('').toUpperCase();
+function allDepts(){ return [...DEPARTAMENTOS, ...[...user.cd,...user.cs].filter(d=>!DEPARTAMENTOS.includes(d))]; }
+function misDepts(){ return isAdmin ? allDepts() : [...new Set([...user.cd,...user.cs])]; }
+
+/* ============ MENÚ ============ */
+let deptOpen=false;
+function render(){
+  document.getElementById('uName').textContent = user.name;
+  document.getElementById('uRole').textContent = user.roles.map(r=>ROLE_LABEL[r]).join(' · ');
+  const av=document.getElementById('uAvatar'); av.innerHTML='';
+  if(user.photo){ const i=new Image(); i.alt=''; i.src=user.photo; i.onerror=()=>{av.textContent=initials()}; av.appendChild(i); }
+  else av.textContent=initials();
+
+  const link=(t,h)=>`<li><a href="${h}"${h===PAGINA?' aria-current="page"':''}>${t}</a></li>`;
+  let html = link('Inicio','inicio.html')+link('En vivo','envivo.html')+link('Multimedia','multimedia.html')+link('Anuncios','anuncios.html')+link('Mi perfil','perfil.html');
+  if(isAdmin||isDir||isSub){
+    const pool=misDepts().sort((a,b)=>{const m=[...user.cd,...user.cs];return (m.includes(a)?0:1)-(m.includes(b)?0:1)});
+    const roleOf=d=>user.cd.includes(d)?'Director':user.cs.includes(d)?'Subdirector':'';
+    const items=pool.length?pool.map(d=>{const r=roleOf(d);return `<li><a href="departamento.html?d=${slug(d)}"><span>${d}</span>${r?`<span class="tag">${r}</span>`:''}</a></li>`}).join(''):`<li class="empty">Aún no tienes departamentos asignados.</li>`;
+    html+=`<li class="nav-title">Departamentos</li><li class="group${deptOpen?' open':''}"><button type="button" aria-expanded="${deptOpen}">Departamentos (${pool.length})<svg class="caret" width="12" height="12" viewBox="0 0 12 12"><path d="M4 1l5 5-5 5" stroke="currentColor" stroke-width="1.6" fill="none"/></svg></button><ul class="sub">${items}</ul></li>`;
+  }
+  if(isAdmin) html+=`<li class="nav-title">Administración</li>`+link('Asignar roles','admin.html');
+  const nav=document.getElementById('nav'); nav.innerHTML=html;
+  const gb=nav.querySelector('.group > button');
+  if(gb){ gb.addEventListener('mouseenter',()=>setDept(true)); gb.addEventListener('click',()=>setDept(!deptOpen)); }
+}
+function setDept(o){
+  const g=document.querySelector('#nav .group'); if(!g) return;
+  const gb=g.querySelector('button'), sub=g.querySelector('.sub');
+  deptOpen=o; g.classList.toggle('open',o); gb.setAttribute('aria-expanded',o);
+  if(o){ const barH=document.querySelector('.topbar').offsetHeight;
+    sub.style.top=Math.max(barH,Math.min(gb.getBoundingClientRect().top,innerHeight-sub.offsetHeight-8))+'px'; }
+}
+document.addEventListener('click',e=>{ if(deptOpen && !e.target.closest('#nav .group')) setDept(false); });
+addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(deptOpen) setDept(false); closeVisor(); } });
+render();
+
+/* ============ ANUNCIOS ============
+   Se guardan en localStorage 'getsemani_anuncios' (más reciente primero). Campos:
+   id, titulo, fecha (texto de la fecha del evento, lo usa inicio.html), fechaEvento (AAAA-MM-DD),
+   inicio, fin, lugar, ubicacion, departamentos[], descripcion, flyer (imagen dataURL),
+   autor, creado (ISO). Los anuncios antiguos (solo titulo/fecha/texto) también se muestran. */
+const KEY='getsemani_anuncios';
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function load(){ try{ const l=JSON.parse(localStorage.getItem(KEY)); return Array.isArray(l)?l:[]; }catch(e){ return []; } }
+function save(l){ try{ localStorage.setItem(KEY,JSON.stringify(l)); return true; }catch(e){ return false; } }
+
+const MESES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+function fechaLarga(iso){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||''); if(!m) return '';
+  const d=new Date(+m[1],+m[2]-1,+m[3]);
+  const t=DIAS[d.getDay()]+' '+d.getDate()+' de '+MESES[d.getMonth()]+' de '+d.getFullYear();
+  return t.charAt(0).toUpperCase()+t.slice(1);
+}
+function hora12(h){
+  const m=/^(\d{2}):(\d{2})$/.exec(h||''); if(!m) return '';
+  let H=+m[1]; const ap=H>=12?'p. m.':'a. m.'; H=H%12||12; return H+':'+m[2]+' '+ap;
+}
+function horario(a){ return a.inicio ? hora12(a.inicio)+(a.fin?' a '+hora12(a.fin):'') : ''; }
+function hoyISO(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+const esPasado = a => a.fechaEvento ? a.fechaEvento < hoyISO() : false;
+function mapaHref(u){
+  if(!u) return '';
+  if(/^https?:\/\//i.test(u)) return u;
+  return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(u);
+}
+
+/* Filtros */
+let filtro='proximos', filtroDepto='', filtroTipo='';
+document.getElementById('fTipoF').addEventListener('change',e=>{ filtroTipo=e.target.value; pintar(); });
+const selDepto=document.getElementById('fDepto');
+function llenarFiltroDeptos(){
+  const usados=new Set(); load().forEach(a=>(a.departamentos||[]).forEach(d=>usados.add(d)));
+  const lista=[...new Set([...DEPARTAMENTOS,...usados])].sort((a,b)=>a.localeCompare(b,'es'));
+  selDepto.innerHTML='<option value="">Todos los departamentos</option>'+lista.map(d=>`<option>${esc(d)}</option>`).join('');
+  selDepto.value=filtroDepto;
+}
+document.getElementById('tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  filtro=b.dataset.f;
+  document.querySelectorAll('#tabs button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  pintar();
+});
+selDepto.addEventListener('change',()=>{ filtroDepto=selDepto.value; pintar(); });
+
+/* Tarjetas */
+function puedeBorrar(a){ return isAdmin || (a.autor && a.autor===user.email && user.email); }
+
+/* Videos cargados: se guardan en IndexedDB (localStorage es muy pequeño para video) */
+function dbVideos(){
+  return new Promise((ok,ko)=>{
+    const r=indexedDB.open('getsemani_videos',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('v');
+    r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error);
+  });
+}
+async function guardarVideo(id,file){
+  const db=await dbVideos();
+  return new Promise((ok,ko)=>{ const t=db.transaction('v','readwrite'); t.objectStore('v').put(file,id); t.oncomplete=()=>ok(); t.onerror=()=>ko(t.error); });
+}
+async function obtenerVideo(id){
+  const db=await dbVideos();
+  return new Promise((ok,ko)=>{ const r=db.transaction('v').objectStore('v').get(id); r.onsuccess=()=>ok(r.result||null); r.onerror=()=>ko(r.error); });
+}
+async function borrarVideo(id){
+  try{ const db=await dbVideos(); db.transaction('v','readwrite').objectStore('v').delete(id); }catch(e){}
+}
+let urlsVideo=[];
+function ytId(u){
+  u=(u||'').trim(); if(/^[\w-]{11}$/.test(u)) return u;
+  const m=u.match(/(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/))([\w-]{11})/);
+  return m?m[1]:'';
+}
+function flyerDual(a){
+  const capa = a.flyer
+    ? `<button type="button" class="capa on" data-capa="img" data-ver="${esc(a.id)}" aria-label="Ampliar flyer de ${esc(a.titulo)}"><img src="${esc(a.flyer)}" alt="Flyer: ${esc(a.titulo)}" loading="lazy"></button>`
+    : `<div class="capa on poster" data-capa="img"><span>${esc(a.titulo)}</span></div>`;
+  return `<div class="flyer dual" data-dual="${esc(a.id)}">
+    <div class="medios">${capa}<div class="capa" data-capa="vid"></div></div>
+    <div class="conmuta" role="group" aria-label="Alternar entre flyer y video">
+      <button type="button" data-show="img" aria-pressed="true">${a.flyer?'Flyer':'Portada'}</button>
+      <button type="button" data-show="vid" aria-pressed="false">▶ Video</button>
+    </div>
+  </div>`;
+}
+async function cargarVideo(a,cont){
+  if(cont.firstChild) return;
+  const v=a.video||{};
+  if(v.tipo==='youtube'){
+    cont.innerHTML=`<iframe src="https://www.youtube-nocookie.com/embed/${esc(v.id)}?autoplay=1&rel=0" title="Video: ${esc(a.titulo)}" allow="autoplay; accelerometer; encrypted-media; picture-in-picture; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>`;
+  } else if(v.tipo==='archivo'){
+    try{
+      const f=await obtenerVideo(a.id);
+      if(!f){ cont.innerHTML='<p class="vnota">Este video se cargó desde otro navegador o dispositivo y no está disponible aquí.</p>'; return; }
+      const u=URL.createObjectURL(f); urlsVideo.push(u);
+      const el=document.createElement('video'); el.controls=true; el.autoplay=true; el.playsInline=true; el.src=u; cont.appendChild(el);
+    }catch(e){ cont.innerHTML='<p class="vnota">No se pudo cargar el video.</p>'; }
+  }
+}
+async function mostrarCapa(box,que){
+  const a=load().map((x,i)=>({...x,id:x.id||('a'+i)})).find(x=>x.id===box.dataset.dual); if(!a) return;
+  const cImg=box.querySelector('[data-capa=img]'), cVid=box.querySelector('[data-capa=vid]');
+  box.querySelectorAll('[data-show]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.show===que));
+  if(que==='vid'){
+    await cargarVideo(a,cVid);
+    cImg.classList.remove('on'); cVid.classList.add('on');
+  } else {
+    cVid.classList.remove('on'); cImg.classList.add('on');
+    // se vacía el reproductor para detener el video
+    setTimeout(()=>{ if(!cVid.classList.contains('on')) cVid.innerHTML=''; },480);
+  }
+}
+function tarjeta(a){
+  const pas=esPasado(a);
+  const info=a.tipo==='informativo' || !a.fechaEvento;
+  const deptos=(a.departamentos||[]);
+  const flyer = a.video ? flyerDual(a) : a.flyer
+    ? `<div class="flyer"><button type="button" data-ver="${esc(a.id)}" aria-label="Ampliar flyer de ${esc(a.titulo)}"><img src="${esc(a.flyer)}" alt="Flyer: ${esc(a.titulo)}" loading="lazy"></button></div>`
+    : '';
+  const fechaTxt = a.fechaEvento ? fechaLarga(a.fechaEvento) : (a.fecha||'');
+  const datos=[];
+  if(fechaTxt) datos.push([info?'Publicado':'Fecha',esc(fechaTxt)]);
+  if(horario(a)) datos.push(['Horario',esc(horario(a))]);
+  if(a.lugar) datos.push(['Lugar',esc(a.lugar)]);
+  if(a.ubicacion){
+    const h=mapaHref(a.ubicacion);
+    datos.push(['Ubicación',esc(a.ubicacion)+` · <a href="${esc(h)}" target="_blank" rel="noopener">Ver en el mapa</a>`]);
+  }
+  if(deptos.length) datos.push([info?'Publica':'Organiza',esc(deptos.join(', '))]);
+  const texto = a.descripcion || a.texto || '';
+  return `<article class="evento${pas?' pasado':''}${flyer?'':' solo'}" data-id="${esc(a.id)}">
+    ${flyer}
+    <div class="info">
+      <div class="badges"><span class="badge tipo">${info?'Informativo':'Evento'}</span>${a.fechaEvento?`<span class="badge est${pas?' fin':''}">${pas?'Finalizado':'Próximamente'}</span>`:''}${deptos.map(d=>`<span class="badge">${esc(d)}</span>`).join('')}</div>
+      <h3>${esc(a.titulo)}</h3>
+      ${datos.length?`<dl class="datos">${datos.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`:''}
+      ${texto?`<p class="desc">${esc(texto)}</p>`:''}
+      <div class="pie">
+        ${a.autor?`<span>Publicado por ${esc(a.autorNombre||a.autor)}</span>`:''}${a.editado?`<span>· Editado el ${esc(new Date(a.editado).toLocaleDateString('es-CO'))}</span>`:''}
+        <span class="acc">${puedeBorrar(a)?`<button class="btn mini sec" type="button" data-edit="${esc(a.id)}">Editar</button><button class="btn mini danger" type="button" data-del="${esc(a.id)}">Eliminar</button>`:''}</span>
+      </div>
+    </div>
+  </article>`;
+}
+function pintar(){
+  let l=load();
+  l=l.map((a,i)=>({...a,id:a.id||('a'+i)}));
+  if(filtro==='proximos') l=l.filter(a=>!esPasado(a));
+  if(filtro==='pasados') l=l.filter(esPasado);
+  if(filtroDepto) l=l.filter(a=>(a.departamentos||[]).includes(filtroDepto));
+  if(filtroTipo) l=l.filter(a=>{ const inf=a.tipo==='informativo'||!a.fechaEvento; return filtroTipo==='informativo'?inf:!inf; });
+  // Próximos: el más cercano primero; pasados: el más reciente primero
+  const key=a=>a.fechaEvento||'9999-12-31';
+  l.sort((a,b)=> filtro==='pasados' ? key(b).localeCompare(key(a)) : key(a).localeCompare(key(b)));
+  const box=document.getElementById('lista');
+  box.innerHTML = l.length ? l.map(tarjeta).join('')
+    : `<div class="vacio">${filtro==='proximos'?'No hay anuncios vigentes.':'No hay anuncios para mostrar.'}${puedePublicar?' Publica el primero con el formulario de arriba.':''}</div>`;
+  urlsVideo.forEach(u=>URL.revokeObjectURL(u)); urlsVideo=[];
+}
+document.getElementById('lista').addEventListener('click',e=>{
+  const sh=e.target.closest('[data-show]');
+  if(sh){ mostrarCapa(sh.closest('[data-dual]'),sh.dataset.show); return; }
+  const v=e.target.closest('[data-ver]');
+  if(v){ const a=load().map((x,i)=>({...x,id:x.id||('a'+i)})).find(x=>x.id===v.dataset.ver); if(a&&a.flyer) openVisor(a.flyer,a.titulo); return; }
+  const ed=e.target.closest('[data-edit]');
+  if(ed){ empezarEdicion(ed.dataset.edit); return; }
+  const d=e.target.closest('[data-del]');
+  if(d && confirm('¿Eliminar este anuncio? No se puede deshacer.')){
+    const l=load().map((x,i)=>({...x,id:x.id||('a'+i)})).filter(x=>x.id!==d.dataset.del);
+    if(editId===d.dataset.del) salirEdicion();
+    borrarVideo(d.dataset.del); save(l); llenarFiltroDeptos(); pintar();
+  }
+});
+
+/* Visor del flyer */
+const visor=document.getElementById('visor');
+function openVisor(src,t){ document.getElementById('visorImg').src=src; document.getElementById('visorImg').alt='Flyer: '+t; visor.classList.add('open'); }
+function closeVisor(){ visor.classList.remove('open'); }
+visor.addEventListener('click',closeVisor);
+
+/* ============ PUBLICAR ============ */
+if(puedePublicar){
+  document.getElementById('formPanel').hidden=false;
+  document.getElementById('fDeptos').innerHTML = misDepts().map(d=>`<label><input type="checkbox" value="${esc(d)}">${esc(d)}</label>`).join('')
+    || '<span class="hint">Aún no tienes departamentos asignados.</span>';
+  document.getElementById('fFecha').min=hoyISO();
+}
+let flyerData='';
+const fFlyer=document.getElementById('fFlyer'), prev=document.getElementById('fPreview'), err=document.getElementById('fErr');
+fFlyer.addEventListener('change',()=>{
+  err.textContent=''; flyerData=''; prev.style.display='none';
+  const f=fFlyer.files[0]; if(!f) return;
+  if(!/^image\//.test(f.type)){ err.textContent='El flyer debe ser una imagen.'; fFlyer.value=''; return; }
+  const r=new FileReader();
+  r.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=1000, k=Math.min(1,max/Math.max(img.width,img.height));
+      const c=document.createElement('canvas'); c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+      const x=c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height); x.drawImage(img,0,0,c.width,c.height);
+      flyerData=c.toDataURL('image/jpeg',.82); prev.src=flyerData; prev.style.display='block';
+    };
+    img.onerror=()=>{ err.textContent='No se pudo leer esa imagen.'; };
+    img.src=r.result;
+  };
+  r.readAsDataURL(f);
+});
+const fTipo=document.getElementById('fTipo'), fYoutube=document.getElementById('fYoutube'), fVideo=document.getElementById('fVideo'), fVideoHint=document.getElementById('fVideoHint');
+function syncForm(){
+  document.getElementById('bloqueEvento').hidden = fTipo.value!=='evento';
+  const m=document.querySelector('input[name=fVideoModo]:checked').value;
+  fYoutube.hidden = m!=='youtube'; fVideo.hidden = m!=='archivo'; fVideoHint.hidden = m!=='archivo';
+}
+fTipo.addEventListener('change',syncForm);
+document.querySelectorAll('input[name=fVideoModo]').forEach(r=>r.addEventListener('change',syncForm));
+syncForm();
+let editId=null, editando=null;
+const fSubmit=document.getElementById('fSubmit'), fCancel=document.getElementById('fCancel');
+const setVal=(id,v)=>{ document.getElementById(id).value=v||''; };
+function salirEdicion(){
+  editId=null; editando=null;
+  document.getElementById('form').reset(); flyerData=''; prev.style.display='none'; prev.removeAttribute('src');
+  document.getElementById('modoMantener').hidden=true; document.getElementById('quitarFlyerBox').hidden=true;
+  document.getElementById('formTitulo').textContent='Publicar un anuncio'; fSubmit.textContent='Publicar anuncio'; fCancel.hidden=true;
+  document.getElementById('fFecha').min=hoyISO();
+  document.querySelectorAll('#fDeptos label.extra').forEach(l=>l.remove());
+  err.textContent=''; syncForm();
+}
+function empezarEdicion(id){
+  const a=load().map((x,i)=>({...x,id:x.id||('a'+i)})).find(x=>x.id===id); if(!a) return;
+  salirEdicion(); editId=id; editando=a;
+  fTipo.value = (a.tipo==='informativo'||!a.fechaEvento) ? 'informativo' : 'evento';
+  setVal('fTitulo',a.titulo); setVal('fFecha',a.fechaEvento); setVal('fInicio',a.inicio); setVal('fFin',a.fin);
+  setVal('fLugar',a.lugar); setVal('fUbicacion',a.ubicacion); setVal('fDesc',a.descripcion||a.texto);
+  document.getElementById('fFecha').removeAttribute('min');
+  const box=document.getElementById('fDeptos');
+  (a.departamentos||[]).forEach(d=>{
+    let cb=[...box.querySelectorAll('input')].find(i=>i.value===d);
+    if(!cb){ const l=document.createElement('label'); l.className='extra'; l.innerHTML='<input type="checkbox" value="'+esc(d)+'">'+esc(d); box.appendChild(l); cb=l.querySelector('input'); }
+    cb.checked=true;
+  });
+  if(a.flyer){ prev.src=a.flyer; prev.style.display='block'; document.getElementById('quitarFlyerBox').hidden=false; }
+  if(a.video){ document.getElementById('modoMantener').hidden=false; document.querySelector('input[name=fVideoModo][value=mantener]').checked=true; }
+  syncForm();
+  document.getElementById('formTitulo').textContent='Editar anuncio'; fSubmit.textContent='Guardar cambios'; fCancel.hidden=false;
+  const fp=document.getElementById('formPanel'); fp.open=true; fp.scrollIntoView({behavior:'smooth',block:'start'});
+}
+fCancel.addEventListener('click',()=>{ salirEdicion(); document.getElementById('formPanel').open=false; });
+document.getElementById('form').addEventListener('submit',async e=>{
+  e.preventDefault(); err.textContent='';
+  const v=id=>document.getElementById(id).value.trim();
+  const deptos=[...document.querySelectorAll('#fDeptos input:checked')].map(i=>i.value);
+  if(!v('fTitulo')) return err.textContent='Escribe el título del anuncio.';
+  if(!deptos.length) return err.textContent='Elige al menos un departamento promotor.';
+  const esEvento = fTipo.value==='evento';
+  if(esEvento){
+    if(!v('fFecha')) return err.textContent='Indica la fecha del evento.';
+    if(!v('fInicio')) return err.textContent='Indica la hora de inicio.';
+    if(v('fFin') && v('fFin')<=v('fInicio')) return err.textContent='La hora de fin debe ser posterior a la de inicio.';
+    if(!v('fLugar')) return err.textContent='Indica el lugar del evento.';
+  } else if(!v('fDesc')) return err.textContent='Escribe el contenido del anuncio informativo en la descripción.';
+  const modo=document.querySelector('input[name=fVideoModo]:checked').value;
+  let video=null, videoFile=null;
+  if(modo==='mantener') video=(editando&&editando.video)||null;
+  else if(modo==='youtube'){
+    const yid=ytId(v('fYoutube'));
+    if(!yid) return err.textContent='El enlace de YouTube no es válido.';
+    video={tipo:'youtube',id:yid};
+  } else if(modo==='archivo'){
+    const f=fVideo.files[0];
+    if(!f) return err.textContent='Elige el archivo de video.';
+    if(!/^video\//.test(f.type)) return err.textContent='El archivo debe ser un video.';
+    if(f.size>200*1024*1024) return err.textContent='El video pesa más de 200 MB.';
+    video={tipo:'archivo',nombre:f.name}; videoFile=f;
+  }
+  const a={
+    id: editId || ('a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),
+    tipo:esEvento?'evento':'informativo', titulo:v('fTitulo'),
+    fechaEvento:esEvento?v('fFecha'):'', fecha: esEvento ? fechaLarga(v('fFecha')) : ((editando && (editando.tipo==='informativo'||!editando.fechaEvento) && editando.fecha) || fechaLarga(hoyISO())),
+    inicio:esEvento?v('fInicio'):'', fin:esEvento?v('fFin'):'', lugar:esEvento?v('fLugar'):'', ubicacion:esEvento?v('fUbicacion'):'',
+    departamentos:deptos, descripcion:v('fDesc'), flyer: flyerData || ((editando && !document.getElementById('fQuitarFlyer').checked) ? (editando.flyer||'') : ''), video,
+    autor: editando ? editando.autor : (user.email||user.name), autorNombre: editando ? editando.autorNombre : user.name,
+    creado: editando ? editando.creado : new Date().toISOString(), ...(editando ? {editado:new Date().toISOString()} : {})
+  };
+  if(videoFile){
+    try{ await guardarVideo(a.id,videoFile); }
+    catch(x){ return err.textContent='No se pudo guardar el video en este navegador (¿poco espacio?). Prueba con un enlace de YouTube.'; }
+  }
+  const l=load().map((x,i)=>({...x,id:x.id||('a'+i)}));
+  if(editando){ const i=l.findIndex(x=>x.id===editId); if(i<0) l.unshift(a); else l[i]=a; } else l.unshift(a);
+  if(!save(l)){ if(videoFile && !editando) borrarVideo(a.id); return err.textContent='No hay espacio para guardar. Prueba con un flyer más liviano o elimina anuncios antiguos.'; }
+  if(editando && editando.video && editando.video.tipo==='archivo' && !(video && video.tipo==='archivo')) borrarVideo(editId);
+  salirEdicion(); prev.style.display='none';
+  document.getElementById('formPanel').open=false;
+  filtro='proximos'; filtroDepto=''; document.querySelectorAll('#tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.f===filtro));
+  llenarFiltroDeptos(); pintar();
+});
+llenarFiltroDeptos(); pintar();
+
+/* ============ INTERACCIONES ============ */
+const body=document.body, mobile=()=>matchMedia('(max-width:860px)').matches;
+document.getElementById('burger').addEventListener('click',()=>{ if(mobile()) body.classList.remove('open-mobile'); else body.classList.toggle('collapsed'); });
+const reopen=document.createElement('button');
+reopen.className='burger'; reopen.setAttribute('aria-label','Abrir menú'); reopen.style.cssText='display:none;margin-left:8px';
+reopen.innerHTML=document.getElementById('burger').innerHTML;
+document.querySelector('.brand').after(reopen);
+reopen.addEventListener('click',()=>{ if(mobile()) body.classList.toggle('open-mobile'); else body.classList.remove('collapsed'); });
+function syncReopen(){ reopen.style.display=(mobile()||body.classList.contains('collapsed'))?'grid':'none'; }
+new MutationObserver(syncReopen).observe(body,{attributes:true}); addEventListener('resize',syncReopen); syncReopen();
+
+const uBtn=document.getElementById('userBtn'), uMenu=document.getElementById('userMenu');
+uBtn.addEventListener('click',e=>{e.stopPropagation();const o=uMenu.classList.toggle('open');uBtn.setAttribute('aria-expanded',o)});
+document.addEventListener('click',()=>{uMenu.classList.remove('open');uBtn.setAttribute('aria-expanded','false')});
+document.getElementById('goProfile').addEventListener('click',()=>location.href='perfil.html');
+document.getElementById('logout').addEventListener('click',()=>{ try{localStorage.removeItem('getsemani_user')}catch(e){} location.href='index.html'; });
+
+const aBtn=document.getElementById('a11yBtn'), aPanel=document.getElementById('a11yPanel');
+aBtn.addEventListener('click',()=>{const o=aPanel.classList.toggle('open');aBtn.setAttribute('aria-expanded',o)});
+aPanel.addEventListener('click',e=>{
+  const a=e.target.dataset.a; if(!a) return;
+  if(a==='big') body.classList.toggle('big');
+  if(a==='contrast') body.classList.toggle('contrast');
+  if(a==='reset') body.classList.remove('big','contrast');
+});
+</script>
+</body>
+</html>
